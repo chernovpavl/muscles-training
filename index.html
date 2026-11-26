@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#7a3b3b">
+<title>Мышцы — тренажёр</title>
+<style>
+:root{
+  --bg:#f6f4f1; --card:#fff; --text:#1f1d1b; --muted:#6f6a64; --line:#e4dfd8;
+  --accent:#9b3d3d; --accent-soft:#f4e3e1; --ok:#2f7d4f; --warn:#b5741c; --bad:#b33a3a; --blue:#2f5f9e;
+  --radius:14px;
+}
+@media (prefers-color-scheme: dark){
+  :root{--bg:#161514; --card:#211f1d; --text:#ece8e3; --muted:#9a948d; --line:#34302c; --accent:#d4716b; --accent-soft:#3a2523; --ok:#5bb582; --warn:#e0a24a; --bad:#e06a6a; --blue:#78a6e0;}
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+.wrap{max-width:760px;margin:0 auto;padding:12px 14px calc(40px + env(safe-area-inset-bottom))}
+header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:6px 0 10px}
+header h1{font-size:19px;margin:0;flex:1;letter-spacing:-.01em}
+.sync{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.sync img{width:26px;height:26px;border-radius:50%}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.on{background:var(--ok)} .dot.busy{background:var(--warn)} .dot.err{background:var(--bad)}
+nav{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px;position:sticky;top:6px;z-index:5}
+nav button{flex:1;border:0;background:none;padding:8px 6px;border-radius:9px;cursor:pointer;color:var(--muted);font-weight:600;font-size:14px}
+nav button.active{background:var(--accent-soft);color:var(--accent)}
+.panel{display:none} .panel.active{display:block}
+.box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.box h2{font-size:16px;margin:0 0 10px}
+.muted{color:var(--muted)} .small{font-size:13px}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:9px 14px;cursor:pointer;font-weight:600}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;user-select:none;font-size:14px}
+.chip input{accent-color:var(--accent);margin:0}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+.stat{background:var(--bg);border-radius:10px;padding:8px;text-align:center}
+.stat b{display:block;font-size:20px} .stat span{font-size:12px;color:var(--muted)}
+.blockstats{margin-top:10px;font-size:13px}
+.bar{height:6px;background:var(--line);border-radius:4px;overflow:hidden;display:flex;margin:4px 0 8px}
+.bar i{display:block;height:100%}
+/* card */
+.progress{height:4px;background:var(--line);border-radius:3px;margin-bottom:10px;overflow:hidden}
+.progress i{display:block;height:100%;background:var(--accent);transition:width .2s}
+.qmeta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:6px}
+.qname{font-size:21px;font-weight:700;margin:2px 0 4px;line-height:1.25}
+.qfield{display:inline-block;background:var(--accent-soft);color:var(--accent);font-weight:700;border-radius:8px;padding:2px 10px;font-size:14px}
+textarea{width:100%;min-height:70px;border:1px solid var(--line);border-radius:10px;background:var(--bg);padding:10px;resize:vertical;margin-top:12px}
+.answer{margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)}
+.answer .text{font-size:16.5px}
+.yours{font-size:14px;color:var(--muted);background:var(--bg);border-radius:10px;padding:8px 10px;margin-bottom:10px;white-space:pre-wrap}
+.hint{margin-top:12px;background:var(--bg);border-left:3px solid var(--warn);border-radius:8px;padding:10px 12px;font-size:14.5px}
+.hint b{color:var(--warn)}
+details.full{margin-top:10px;font-size:14px}
+details.full summary{cursor:pointer;color:var(--blue)}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:16px}
+.grades button{border:0;border-radius:10px;padding:10px 4px;cursor:pointer;font-weight:700;color:#fff;line-height:1.2}
+.grades button small{display:block;font-weight:500;opacity:.85;font-size:11.5px}
+.g0{background:var(--bad)} .g1{background:var(--warn)} .g2{background:var(--ok)} .g3{background:var(--blue)}
+.kbd{font-size:11px;color:var(--muted);text-align:center;margin-top:8px}
+/* table */
+.search{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--card);margin-bottom:12px}
+.grp{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin:18px 2px 8px}
+details.m{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:8px}
+details.m summary{padding:11px 14px;cursor:pointer;display:flex;gap:10px;align-items:center;list-style:none}
+details.m summary::-webkit-details-marker{display:none}
+details.m summary .num{color:var(--muted);font-variant-numeric:tabular-nums;width:22px;flex:none}
+details.m summary .nm{flex:1;font-weight:600}
+.pips{display:flex;gap:3px} .pip{width:8px;height:8px;border-radius:50%;background:var(--line)}
+.pip.l{background:var(--warn)} .pip.k{background:var(--ok)}
+.mbody{padding:0 14px 14px 46px;font-size:14.5px}
+.mbody p{margin:6px 0}
+.lab{font-weight:700}
+.rules h3{font-size:16px;margin:18px 0 8px} .rules h3:first-child{margin-top:0}
+.rules p,.rules li{font-size:15px} .rules ul{padding-left:20px}
+.toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:10px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:20}
+.toast.show{opacity:1}
+.center{text-align:center}
+.hide{display:none!important}
+input[type=number]{width:70px;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--bg)}
+.linkbtn{border:0;background:none;padding:0;color:var(--blue);cursor:pointer;font-size:12px}
+.gate{max-width:420px;margin:12vh auto 0;text-align:center}
+.gate h2{font-size:20px}
+.fig{display:block;max-width:100%;max-height:300px;margin:12px auto 0;border-radius:10px;background:#fff;cursor:zoom-in}
+.qfig{max-height:340px}
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;z-index:30;padding:12px}
+.lightbox img{max-width:100%;max-height:100%;background:#fff;border-radius:8px}
+.ovs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px}
+.ovs img{width:100%;border-radius:10px;background:#fff;cursor:zoom-in}
+.ovs div{text-align:center;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>💪 Мышцы — тренажёр</h1>
+    <div class="sync" id="sync"></div>
+  </header>
+
+  <!-- GATE: вход / нет доступа / загрузка -->
+  <section id="gate" class="gate">
+    <div class="box">
+      <h2 id="gate-title">Загрузка…</h2>
+      <p class="muted" id="gate-text"></p>
+      <div class="row" style="justify-content:center" id="gate-actions"></div>
+      <form id="gate-email" class="hide" style="margin-top:16px">
+        <div class="small muted" id="gate-email-label" style="margin-bottom:8px">или войти по ссылке на почту</div>
+        <div class="row" style="justify-content:center">
+          <input type="email" id="email-input" required autocomplete="email" placeholder="you@mail.ru" class="search" style="margin:0;flex:1;min-width:0">
+          <button class="btn primary" id="email-btn">Получить ссылку</button>
+        </div>
+      </form>
+      <div id="gate-upload" class="hide" style="margin-top:14px">
+        <label class="btn primary">Выбрать content.json<input type="file" accept="application/json" class="hide" data-upload></label>
+      </div>
+    </div>
+  </section>
+
+  <div id="app" class="hide">
+  <nav>
+    <button data-tab="train" class="active">Тренировка</button>
+    <button data-tab="rules">Правила</button>
+    <button data-tab="table">Таблица</button>
+    <button data-tab="settings">⚙︎</button>
+  </nav>
+
+  <!-- TRAIN -->
+  <section class="panel active" id="p-train">
+    <div id="setup">
+      <div class="box">
+        <h2>Сегодня</h2>
+        <div class="stats">
+          <div class="stat"><b id="st-due">0</b><span>к повторению</span></div>
+          <div class="stat"><b id="st-new">0</b><span>новых доступно</span></div>
+          <div class="stat"><b id="st-learn">0</b><span>изучаются</span></div>
+          <div class="stat"><b id="st-known">0</b><span>выучено</span></div>
+        </div>
+        <div class="blockstats" id="blockstats"></div>
+      </div>
+      <div class="box">
+        <h2>Что учим</h2>
+        <div class="chips" id="blocks"></div>
+        <div style="height:10px"></div>
+        <div class="chips" id="types"></div>
+        <div style="height:12px"></div>
+        <div class="row small muted">
+          Новых карточек в день: <input type="number" id="newlimit" min="0" max="200" step="5">
+        </div>
+        <div style="height:14px"></div>
+        <div class="row">
+          <button class="btn primary" id="start">Начать</button>
+          <button class="btn" id="cram" title="Все выбранные карточки вперемешку, расписание не меняется">Прогнать всё (перед экзаменом)</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="session" class="hide">
+      <div class="progress"><i id="prog"></i></div>
+      <div class="box" id="card">
+        <div class="qmeta"><span id="q-block"></span><span><span id="q-left"></span> · <button class="linkbtn" id="stop">закончить</button></span></div>
+        <div class="qname" id="q-name"></div>
+        <div id="q-field-wrap"><span class="qfield" id="q-field"></span></div>
+        <img class="fig qfig hide" id="q-img" alt="">
+        <textarea id="q-input" placeholder="Ответьте сами (можно не печатать, а проговорить)…"></textarea>
+        <div class="row" style="margin-top:12px" id="show-row">
+          <button class="btn primary" id="show">Показать ответ</button>
+        </div>
+        <div class="answer hide" id="answer">
+          <div class="yours hide" id="yours"></div>
+          <div class="text" id="a-text"></div>
+          <img class="fig hide" id="a-img" alt="">
+          <div class="hint" id="a-hint"></div>
+          <details class="full" id="a-full"><summary>Вся мышца целиком</summary><div id="a-full-body"></div></details>
+          <div class="grades">
+            <button class="g0" data-g="0">Не помню<small id="iv0"></small></button>
+            <button class="g1" data-g="1">Трудно<small id="iv1"></small></button>
+            <button class="g2" data-g="2">Помню<small id="iv2"></small></button>
+            <button class="g3" data-g="3">Легко<small id="iv3"></small></button>
+          </div>
+          <div class="kbd">Клавиши: пробел — показать ответ, 1–4 — оценка (в поле ввода: Ctrl/⌘+Enter)</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="done" class="hide">
+      <div class="box center">
+        <h2>Готово 🎉</h2>
+        <p class="muted" id="done-text"></p>
+        <button class="btn primary" id="back">К началу</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULES -->
+  <section class="panel" id="p-rules">
+    <div class="box" id="overview"></div>
+    <div class="box rules" id="rules"></div>
+  </section>
+
+  <!-- TABLE -->
+  <section class="panel" id="p-table">
+    <input class="search" id="search" placeholder="Поиск: мышца, кость, функция…">
+    <div class="small muted" style="margin:-4px 2px 6px">Точки: начало · прикрепление · функции (серый — новая, жёлтый — учится, зелёный — выучена)</div>
+    <div id="mlist"></div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="panel" id="p-settings">
+    <div class="box">
+      <h2>Аккаунт и синхронизация</h2>
+      <div id="sync-info" class="small"></div>
+    </div>
+    <div class="box">
+      <h2>Резервная копия</h2>
+      <div class="row">
+        <button class="btn" id="export">Скачать прогресс</button>
+        <label class="btn">Загрузить из файла<input type="file" id="import" accept="application/json" class="hide"></label>
+      </div>
+    </div>
+    <div class="box" id="owner-box">
+      <h2>Обновить материалы (владелец)</h2>
+      <p class="small muted">Загружает content.json (таблица, подсказки, картинки) в Firestore. Сработает только у владельца — так настроены правила.</p>
+      <label class="btn">Выбрать content.json<input type="file" accept="application/json" class="hide" data-upload></label>
+    </div>
+    <div class="box">
+      <h2>Сброс</h2>
+      <button class="btn" id="reset">Сбросить весь прогресс</button>
+    </div>
+  </section>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<div class="lightbox hide" id="lightbox"><img alt=""></div>
+
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const DAY = 864e5;
+const startOfDay = (t = Date.now()) => { const d = new Date(t); d.setHours(0,0,0,0); return d.getTime(); };
+const todayKey = () => new Date().toLocaleDateString("sv");
+const toast = msg => { const t = $("#toast"); t.textContent = msg; t.classList.add("show"); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove("show"), 2600); };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+/* ---------- content (загружается после входа) ---------- */
+let C = null;               // {muscles, hints, reverse, groups, rules}
+let IMG = {};               // ключ → data URL
+let CARDS = [], cardById = {};
+const FIELDS = {o:"Начало", i:"Прикрепление", f:"Основные функции"};
+const TYPES = {o:"Начало", i:"Прикрепление", f:"Функции", p:"Узнать по картинке", r:"Обратные вопросы"};
+
+function buildCards(){
+  CARDS = [];
+  for (const m of C.muscles){
+    for (const k of ["o","i","f"]) CARDS.push({id:`${m.n}${k}`, type:k, g:m.g, m});
+    if (IMG[m.n]) CARDS.push({id:`${m.n}p`, type:"p", g:m.g, m});
+  }
+  for (const r of C.reverse) CARDS.push({id:r.id, type:"r", g:r.g, r});
+  cardById = Object.fromEntries(CARDS.map(c => [c.id, c]));
+}
+
+/* ---------- state ---------- */
+const LS = "muscles.v1", PREF = "muscles.prefs.v1", EMAIL_KEY = "muscles.emailForSignIn";
+let state = load(LS) || {cards:{}, newDay:{date:"", count:0}};
+let prefs = Object.assign({blocks:["trunk"], types:["o","i","f","p","r"], newLimit:20}, load(PREF) || {});
+function load(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
+function saveLocal(){ try { localStorage.setItem(LS, JSON.stringify(state)); } catch {} }
+function savePrefs(){ try { localStorage.setItem(PREF, JSON.stringify(prefs)); } catch {} }
+function persist(){ saveLocal(); Sync.push(); }
+const newCountToday = () => state.newDay.date === todayKey() ? state.newDay.count : 0;
+
+/* ---------- SRS (упрощённый SM-2) ---------- */
+function schedule(rec, g, now = Date.now()){
+  const r = rec ? {...rec} : {ef:2.5, iv:0, reps:0, lapses:0};
+  if (g === 0){ r.reps = 0; r.iv = 0; r.lapses++; r.ef = Math.max(1.3, r.ef - 0.2); r.due = now + 60e3; }
+  else {
+    if (g === 1){ r.iv = r.reps === 0 ? 1 : Math.max(1, Math.round(r.iv * 1.2)); r.ef = Math.max(1.3, r.ef - 0.15); }
+    if (g === 2){ r.iv = r.reps === 0 ? 1 : r.reps === 1 ? 3 : Math.max(r.iv + 1, Math.round(r.iv * r.ef)); }
+    if (g === 3){ r.iv = r.reps === 0 ? 3 : Math.max(r.iv + 2, Math.round(r.iv * r.ef * 1.3)); r.ef += 0.15; }
+    r.reps++; r.due = startOfDay(now) + r.iv * DAY;
+  }
+  r.t = now;
+  return r;
+}
+const ivLabel = r => r.iv === 0 ? "<1 мин" : r.iv === 1 ? "1 день" : r.iv < 5 ? `${r.iv} дня` : r.iv < 30 ? `${r.iv} дн.` : `${Math.round(r.iv/30)} мес.`;
+function status(id){ const r = state.cards[id]; if (!r) return "new"; return r.iv >= 21 ? "known" : "learn"; }
+
+/* ---------- setup screen ---------- */
+function renderChips(){
+  $("#blocks").innerHTML = Object.entries(C.groups).map(([k,v]) =>
+    `<label class="chip"><input type="checkbox" value="${k}" ${prefs.blocks.includes(k)?"checked":""}>${v}</label>`).join("");
+  $("#types").innerHTML = Object.entries(TYPES).map(([k,v]) =>
+    `<label class="chip"><input type="checkbox" value="${k}" ${prefs.types.includes(k)?"checked":""}>${v}</label>`).join("");
+  $("#newlimit").value = prefs.newLimit;
+}
+function readChips(){
+  prefs.blocks = [...document.querySelectorAll("#blocks input:checked")].map(i => i.value);
+  prefs.types = [...document.querySelectorAll("#types input:checked")].map(i => i.value);
+  prefs.newLimit = Math.max(0, parseInt($("#newlimit").value) || 0);
+  savePrefs(); renderStats();
+}
+const selected = () => CARDS.filter(c => prefs.blocks.includes(c.g) && prefs.types.includes(c.type));
+
+function renderStats(){
+  if (!C) return;
+  const now = Date.now(), sel = selected();
+  const due = sel.filter(c => state.cards[c.id] && state.cards[c.id].due <= now).length;
+  const fresh = sel.filter(c => !state.cards[c.id]).length;
+  const newAvail = Math.min(fresh, Math.max(0, prefs.newLimit - newCountToday()));
+  $("#st-due").textContent = due;
+  $("#st-new").textContent = newAvail;
+  $("#st-learn").textContent = sel.filter(c => status(c.id) === "learn").length;
+  $("#st-known").textContent = sel.filter(c => status(c.id) === "known").length;
+  $("#blockstats").innerHTML = Object.entries(C.groups).map(([g, name]) => {
+    const cs = CARDS.filter(c => c.g === g), n = cs.length || 1;
+    const k = cs.filter(c => status(c.id) === "known").length, l = cs.filter(c => status(c.id) === "learn").length;
+    return `<div>${name} <span class="muted">— выучено ${k} из ${cs.length}</span></div>
+      <div class="bar"><i style="width:${k/n*100}%;background:var(--ok)"></i><i style="width:${l/n*100}%;background:var(--warn)"></i></div>`;
+  }).join("");
+  $("#start").disabled = !(due || newAvail);
+  $("#start").textContent = $("#start").disabled ? "На сегодня всё" : "Начать";
+}
+
+/* ---------- session ---------- */
+let S = null;
+function setImg(el, key){ const src = key != null && IMG[key]; el.classList.toggle("hide", !src); if (src) el.src = src; else el.removeAttribute("src"); }
+function startSession(cram){
+  const now = Date.now(), sel = selected();
+  let queue;
+  if (cram) queue = sel.map(c => c.id).sort(() => Math.random() - .5);
+  else {
+    const due = sel.filter(c => state.cards[c.id] && state.cards[c.id].due <= now).sort((a,b) => state.cards[a.id].due - state.cards[b.id].due);
+    const fresh = sel.filter(c => !state.cards[c.id]).slice(0, Math.max(0, prefs.newLimit - newCountToday()));
+    queue = [...due, ...fresh].map(c => c.id);
+  }
+  if (!queue.length){ toast("Нет карточек для выбранных блоков"); return; }
+  S = {queue, cram, total: queue.length, done: 0};
+  $("#setup").classList.add("hide"); $("#done").classList.add("hide"); $("#session").classList.remove("hide");
+  showCard();
+}
+function showCard(){
+  if (!S.queue.length) return finish();
+  const c = cardById[S.queue[0]];
+  $("#prog").style.width = `${S.done / S.total * 100}%`;
+  $("#q-left").textContent = `осталось ${S.queue.length}`;
+  $("#q-block").textContent = C.groups[c.g] + (S.cram ? " · прогон" : "") + (!state.cards[c.id] && !S.cram ? " · новая" : "");
+  setImg($("#q-img"), null);
+  if (c.type === "r"){ $("#q-name").textContent = c.r.q; $("#q-field-wrap").classList.add("hide"); }
+  else if (c.type === "p"){ $("#q-name").textContent = "Какая мышца выделена?"; $("#q-field-wrap").classList.add("hide"); setImg($("#q-img"), c.m.n); }
+  else { $("#q-name").textContent = `${c.m.n}. ${c.m.name}`; $("#q-field").textContent = FIELDS[c.type] + "?"; $("#q-field-wrap").classList.remove("hide"); }
+  $("#q-input").value = "";
+  $("#answer").classList.add("hide"); $("#show-row").classList.remove("hide");
+  S.shown = false;
+}
+function reveal(){
+  if (!S || S.shown) return;
+  S.shown = true;
+  const c = cardById[S.queue[0]];
+  const typed = $("#q-input").value.trim();
+  $("#yours").classList.toggle("hide", !typed); $("#yours").textContent = typed ? "Ваш ответ: " + typed : "";
+  setImg($("#a-img"), null);
+  if (c.type === "r"){
+    $("#a-text").innerHTML = esc(c.r.a);
+    $("#a-hint").classList.add("hide"); $("#a-full").classList.add("hide");
+  } else {
+    $("#a-text").innerHTML = c.type === "p"
+      ? `<span class="lab">${c.m.n}. ${esc(c.m.name)}</span>`
+      : `<span class="lab">${FIELDS[c.type]}:</span> ${esc(c.m[c.type])}`;
+    if (c.type !== "p") setImg($("#a-img"), c.m.n);
+    $("#a-hint").innerHTML = `<b>Как запомнить:</b> ${esc(C.hints[c.m.n] || "")}`; $("#a-hint").classList.remove("hide");
+    $("#a-full").classList.remove("hide"); $("#a-full").open = false;
+    $("#a-full-body").innerHTML = muscleBody(c.m, false);
+  }
+  for (let g = 0; g < 4; g++) $("#iv"+g).textContent = S.cram ? "" : ivLabel(schedule(state.cards[c.id], g));
+  $("#show-row").classList.add("hide"); $("#answer").classList.remove("hide");
+}
+function grade(g){
+  if (!S || !S.shown) return;
+  const id = S.queue.shift();
+  if (!S.cram){
+    if (!state.cards[id]){ if (state.newDay.date !== todayKey()) state.newDay = {date: todayKey(), count: 0}; state.newDay.count++; }
+    state.cards[id] = schedule(state.cards[id], g);
+    persist();
+  }
+  if (g === 0) S.queue.splice(Math.min(S.queue.length, 3), 0, id);
+  else if (g === 1 && S.cram) S.queue.splice(Math.min(S.queue.length, 8), 0, id);
+  else S.done++;
+  showCard();
+}
+function finish(){
+  $("#session").classList.add("hide"); $("#done").classList.remove("hide");
+  $("#done-text").textContent = S.cram ? `Прогнали ${S.total} карточек.` : `Пройдено ${S.total} карточек. Следующие повторения придут по расписанию.`;
+  S = null; renderStats(); renderTable();
+}
+function stopSession(){ if (S){ S = null; $("#session").classList.add("hide"); $("#setup").classList.remove("hide"); renderStats(); renderTable(); } }
+
+/* ---------- table / rules ---------- */
+function muscleBody(m, withImg = true){
+  return (withImg && IMG[m.n] ? `<img class="fig" src="${IMG[m.n]}" alt="" loading="lazy">` : "") +
+    `<p><span class="lab">Начало:</span> ${esc(m.o)}</p><p><span class="lab">Прикрепление:</span> ${esc(m.i)}</p><p><span class="lab">Функции:</span> ${esc(m.f)}</p>`;
+}
+function renderTable(){
+  if (!C) return;
+  const q = ($("#search").value || "").toLowerCase().trim();
+  let html = "";
+  for (const [g, name] of Object.entries(C.groups)){
+    const ms = C.muscles.filter(m => m.g === g && (!q || [m.name,m.o,m.i,m.f,C.hints[m.n]].join(" ").toLowerCase().includes(q)));
+    if (!ms.length) continue;
+    html += `<div class="grp">${name}</div>`;
+    for (const m of ms){
+      const pips = ["o","i","f"].map(k => { const s = status(m.n+k); return `<span class="pip ${s==="known"?"k":s==="learn"?"l":""}"></span>`; }).join("");
+      html += `<details class="m" data-n="${m.n}"${q ? " open" : ""}><summary><span class="num">${m.n}</span><span class="nm">${esc(m.name)}</span><span class="pips">${pips}</span></summary><div class="mbody"></div></details>`;
+    }
+  }
+  $("#mlist").innerHTML = html || `<p class="muted center">Ничего не найдено</p>`;
+  const fill = d => { const b = d.querySelector(".mbody"); if (!b.innerHTML){ const m = C.muscles.find(x => x.n == d.dataset.n); b.innerHTML = muscleBody(m) + `<div class="hint"><b>Как запомнить:</b> ${esc(C.hints[m.n] || "")}</div>`; } };
+  document.querySelectorAll("details.m").forEach(d => { if (d.open) fill(d); d.addEventListener("toggle", () => d.open && fill(d)); });
+}
+function renderRules(){
+  $("#rules").innerHTML = C.rules;
+  const ov = ["front","back"].filter(k => IMG[k]);
+  $("#overview").classList.toggle("hide", !ov.length);
+  $("#overview").innerHTML = `<h2>Обзор мышц</h2><div class="ovs">` +
+    ov.map(k => `<div><img src="${IMG[k]}" alt="">${k === "front" ? "Вид спереди" : "Вид сзади"}</div>`).join("") + `</div>`;
+}
+
+/* ---------- lightbox ---------- */
+document.addEventListener("click", e => {
+  const img = e.target.closest(".fig, .ovs img");
+  if (img){ $("#lightbox img").src = img.src; $("#lightbox").classList.remove("hide"); }
+});
+$("#lightbox").onclick = () => $("#lightbox").classList.add("hide");
+
+/* ---------- gate ---------- */
+function gate(title, text, actions = [], upload = false){
+  $("#app").classList.add("hide"); $("#gate").classList.remove("hide");
+  $("#gate-title").textContent = title; $("#gate-text").innerHTML = text;
+  const box = $("#gate-actions"); box.innerHTML = "";
+  for (const [label, fn, primary] of actions){ const b = document.createElement("button"); b.className = "btn" + (primary ? " primary" : ""); b.textContent = label; b.onclick = fn; box.append(b); }
+  $("#gate-upload").classList.toggle("hide", !upload);
+  $("#gate-email").classList.add("hide");
+}
+function openApp(content, images){
+  C = content; IMG = images || {};
+  buildCards(); renderChips(); renderStats(); renderTable(); renderRules();
+  $("#gate").classList.add("hide"); $("#app").classList.remove("hide");
+}
+
+/* ---------- Firebase: вход, доступ, контент, синхронизация ---------- */
+function merge(a, b){ // по каждой карточке берём более свежую запись
+  const out = {cards:{...a.cards}, newDay:{...a.newDay}};
+  let changed = false;
+  for (const [id, r] of Object.entries(b.cards || {})){
+    if (!out.cards[id] || (r.t || 0) > (out.cards[id].t || 0)){ out.cards[id] = r; changed = true; }
+  }
+  if (b.newDay){
+    if (b.newDay.date > out.newDay.date){ out.newDay = {...b.newDay}; changed = true; }
+    else if (b.newDay.date === out.newDay.date && b.newDay.count > out.newDay.count){ out.newDay.count = b.newDay.count; changed = true; }
+  }
+  return {state: out, changed};
+}
+const Sync = {
+  enabled: !!firebaseConfig, user: null, fb: null, timer: null, status: "off", unsub: null,
+  async init(){
+    const V = "10.12.2", base = `https://www.gstatic.com/firebasejs/${V}/`;
+    const [app, auth, fs] = await Promise.all([import(base+"firebase-app.js"), import(base+"firebase-auth.js"), import(base+"firebase-firestore.js")]);
+    const a = app.initializeApp(firebaseConfig);
+    let db;
+    try { db = fs.initializeFirestore(a, {localCache: fs.persistentLocalCache({tabManager: fs.persistentMultipleTabManager()})}); }
+    catch { db = fs.getFirestore(a); }
+    this.fb = {auth, fs, A: auth.getAuth(a), db};
+    auth.getRedirectResult(this.fb.A).catch(e => toast("Не удалось войти: " + e.code));
+    if (auth.isSignInWithEmailLink(this.fb.A, location.href)){
+      this.linkPending = true;
+      const saved = load(EMAIL_KEY);
+      if (saved) await this.finishEmailLink(saved);
+      else { // ссылку открыли на другом устройстве — спросим адрес ещё раз
+        gate("Подтвердите email", "Вы открыли ссылку на другом устройстве или в другом браузере. Введите адрес, на который она пришла.");
+        this.showEmailForm("Тот же email, что и при запросе ссылки", "Войти", email => this.finishEmailLink(email));
+      }
+    }
+    auth.onAuthStateChanged(this.fb.A, u => this.onUser(u));
+  },
+  async onUser(u){
+    if (this.unsub){ this.unsub(); this.unsub = null; }
+    this.user = u; renderSync();
+    if (!u){
+      C = null; stopSession();
+      if (this.linkPending) return;
+      gate("Вход", "Материалы доступны только приглашённым. Войдите через Google или по ссылке на почту — тем адресом, который добавлен в список доступа.", [["Войти через Google", () => this.login(), true]]);
+      this.showEmailForm("или войти по ссылке на почту", "Получить ссылку", email => this.sendLink(email));
+      return;
+    }
+    gate("Загрузка материалов…", esc(u.email || ""));
+    const {fs, db} = this.fb;
+    try {
+      const main = await fs.getDoc(fs.doc(db, "content", "main"));
+      if (!main.exists()){
+        return gate("Материалов пока нет", "Если вы владелец — загрузите <b>content.json</b>, он лежит рядом с сайтом у вас на компьютере.", [["Выйти", () => this.logout()]], true);
+      }
+      const snap = await fs.getDocs(fs.collection(db, "images"));
+      const images = {}; snap.forEach(d => images[d.id] = d.data().data);
+      openApp(main.data(), images);
+      this.listen();
+    } catch (e){
+      console.error(e);
+      if (e.code === "permission-denied")
+        gate("Нет доступа", `У аккаунта <b>${esc(u.email)}</b> нет доступа. Попросите владельца добавить этот email в список.`, [["Войти другим аккаунтом", () => this.logout(), true]]);
+      else gate("Ошибка загрузки", esc(e.code || e.message), [["Повторить", () => this.onUser(u), true], ["Выйти", () => this.logout()]]);
+    }
+  },
+  set(s){ this.status = s; renderSync(); },
+  ref(){ return this.fb.fs.doc(this.fb.db, "users", this.user.uid); },
+  listen(){
+    const {fs} = this.fb;
+    this.set("busy");
+    this.unsub = fs.onSnapshot(this.ref(), snap => {
+      const remote = snap.exists() ? snap.data() : {cards:{}, newDay:{date:"",count:0}};
+      const m1 = merge(state, remote), m2 = merge(remote, state);
+      state = m1.state; saveLocal();
+      if (m1.changed){ renderStats(); renderTable(); }
+      if (m2.changed || !snap.exists()) this.push(true);
+      this.set("on");
+    }, err => { console.error(err); this.set("err"); });
+  },
+  push(now){
+    if (!this.user || !this.fb || !C) return;
+    clearTimeout(this.timer);
+    this.timer = setTimeout(async () => {
+      try { this.set("busy"); await this.fb.fs.setDoc(this.ref(), {cards: state.cards, newDay: state.newDay, updatedAt: Date.now()}); this.set("on"); }
+      catch (e){ console.error(e); this.set("err"); }
+    }, now ? 0 : 1200);
+  },
+  showEmailForm(label, btn, onSubmit){
+    $("#gate-email-label").textContent = label; $("#email-btn").textContent = btn;
+    $("#gate-email").classList.remove("hide");
+    $("#gate-email").onsubmit = e => { e.preventDefault(); const v = $("#email-input").value.trim().toLowerCase(); if (v) onSubmit(v); };
+  },
+  async sendLink(email){
+    const {auth, A} = this.fb;
+    $("#email-btn").disabled = true;
+    try {
+      await auth.sendSignInLinkToEmail(A, email, {url: location.origin + location.pathname, handleCodeInApp: true});
+      try { localStorage.setItem(EMAIL_KEY, JSON.stringify(email)); } catch {}
+      gate("Проверьте почту", `Отправили ссылку для входа на <b>${esc(email)}</b>. Откройте письмо и нажмите ссылку — лучше на этом же устройстве. Если письма нет пару минут, загляните в «Спам».`, [["Отправить ещё раз", () => this.sendLink(email)], ["Другой адрес", () => this.onUser(null)]]);
+    } catch (e){ console.error(e); toast("Не удалось отправить письмо: " + e.code); }
+    finally { $("#email-btn").disabled = false; }
+  },
+  async finishEmailLink(email){
+    const {auth, A} = this.fb;
+    gate("Вход…", esc(email));
+    try {
+      await auth.signInWithEmailLink(A, email, location.href);
+      try { localStorage.removeItem(EMAIL_KEY); } catch {}
+      history.replaceState(null, "", location.pathname);   // убрать одноразовый код из адреса
+      this.linkPending = false;   // onAuthStateChanged сам откроет материалы
+    } catch (e){
+      console.error(e); this.linkPending = false;
+      history.replaceState(null, "", location.pathname);
+      const msg = {"auth/invalid-action-code":"Ссылка уже использована или устарела.", "auth/expired-action-code":"Ссылка устарела.", "auth/invalid-email":"Адрес не совпадает с тем, на который отправляли ссылку."}[e.code] || e.code;
+      gate("Не получилось войти", esc(msg) + " Запросите новую ссылку.", [["К входу", () => this.onUser(null), true]]);
+    }
+  },
+  async login(){
+    const {auth, A} = this.fb, p = new auth.GoogleAuthProvider();
+    p.setCustomParameters({prompt: "select_account"});
+    try { await auth.signInWithPopup(A, p); }
+    catch (e){
+      if (["auth/popup-blocked","auth/operation-not-supported-in-this-environment"].includes(e.code)) return auth.signInWithRedirect(A, p);
+      if (!["auth/popup-closed-by-user","auth/cancelled-popup-request"].includes(e.code)){ console.error(e); toast("Не удалось войти: " + e.code); }
+    }
+  },
+  logout(){ this.fb.auth.signOut(this.fb.A); },
+  async upload(file){
+    const data = JSON.parse(await file.text());
+    if (!data.muscles || !data.images) throw new Error("Это не content.json");
+    const {fs, db} = this.fb;
+    const {images, ...main} = data;
+    gate("Загружаю материалы…", "Не закрывайте страницу.");
+    await fs.setDoc(fs.doc(db, "content", "main"), main);
+    const keys = Object.keys(images);
+    for (let k = 0; k < keys.length; k += 10){
+      const batch = fs.writeBatch(db);
+      for (const key of keys.slice(k, k + 10)) batch.set(fs.doc(db, "images", key), {data: images[key]});
+      await batch.commit();
+      $("#gate-text").textContent = `Картинки: ${Math.min(k + 10, keys.length)} из ${keys.length}`;
+    }
+    toast("Материалы загружены");
+    this.onUser(this.user);
+  },
+};
+function renderSync(){
+  const el = $("#sync"), info = $("#sync-info");
+  if (!Sync.enabled){
+    el.innerHTML = `<span class="dot"></span>локально`;
+    info.innerHTML = `Firebase не настроен: материалы берутся из content.json рядом с сайтом, прогресс хранится только в этом браузере.`;
+    $("#owner-box").classList.add("hide");
+    return;
+  }
+  if (!Sync.user){ el.innerHTML = ""; info.innerHTML = ""; return; }
+  const label = {on:"синхронизировано", busy:"сохраняю…", err:"ошибка синхр.", off:""}[Sync.status];
+  el.innerHTML = `<span class="dot ${Sync.status}"></span>${label}${Sync.user.photoURL ? `<img src="${Sync.user.photoURL}" alt="" referrerpolicy="no-referrer">` : ""}`;
+  info.innerHTML = `Вы вошли как <b>${esc(Sync.user.email || "")}</b>. Прогресс сохраняется в облако после каждой карточки и подтягивается на других устройствах.<div style="height:10px"></div><button class="btn" id="logout">Выйти</button>`;
+  $("#logout").onclick = () => Sync.logout();
+}
+document.querySelectorAll("[data-upload]").forEach(inp => inp.onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  try { await Sync.upload(f); }
+  catch (err){
+    console.error(err);
+    toast(err.code === "permission-denied" ? "Загружать материалы может только владелец" : "Ошибка: " + (err.code || err.message));
+    Sync.onUser(Sync.user);
+  }
+});
+
+/* ---------- settings ---------- */
+$("#export").onclick = () => {
+  const blob = new Blob([JSON.stringify(state, null, 1)], {type:"application/json"});
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `muscles-progress-${todayKey()}.json`; a.click();
+};
+$("#import").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try { const data = JSON.parse(await f.text()); state = merge(state, data).state; persist(); renderStats(); renderTable(); toast("Прогресс загружен"); }
+  catch { toast("Не удалось прочитать файл"); }
+  e.target.value = "";
+};
+$("#reset").onclick = e => {
+  const b = e.currentTarget;
+  if (!b.dataset.armed){ b.dataset.armed = 1; b.textContent = "Нажмите ещё раз — сброс будет и в облаке"; setTimeout(() => { delete b.dataset.armed; b.textContent = "Сбросить весь прогресс"; }, 4000); return; }
+  delete b.dataset.armed; b.textContent = "Сбросить весь прогресс";
+  state = {cards:{}, newDay:{date:"", count:0}}; saveLocal();
+  if (Sync.user) Sync.fb.fs.setDoc(Sync.ref(), {cards:{}, newDay:state.newDay, updatedAt: Date.now()});
+  renderStats(); renderTable(); toast("Прогресс сброшен");
+};
+
+/* ---------- wiring ---------- */
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button").forEach(x => x.classList.toggle("active", x === b));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "p-" + b.dataset.tab));
+  window.scrollTo(0, 0);
+});
+$("#blocks").onchange = $("#types").onchange = readChips;
+$("#newlimit").onchange = readChips;
+$("#start").onclick = () => startSession(false);
+$("#cram").onclick = () => startSession(true);
+$("#show").onclick = reveal;
+$("#stop").onclick = stopSession;
+$("#back").onclick = () => { $("#done").classList.add("hide"); $("#setup").classList.remove("hide"); };
+document.querySelectorAll(".grades button").forEach(b => b.onclick = () => grade(+b.dataset.g));
+$("#search").oninput = renderTable;
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") $("#lightbox").classList.add("hide");
+  if (!S) return;
+  if (e.target.tagName === "TEXTAREA"){ if (e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); reveal(); } return; }
+  if (e.code === "Space" || e.key === "Enter"){ e.preventDefault(); S.shown ? grade(2) : reveal(); }
+  else if (S.shown && "1234".includes(e.key)) grade(+e.key - 1);
+});
+document.addEventListener("visibilitychange", () => { if (!document.hidden) renderStats(); });
+
+/* ---------- start ---------- */
+(async () => {
+  if (Sync.enabled){
+    try { await Sync.init(); }
+    catch (e){ console.error(e); gate("Не удалось загрузить Firebase", "Проверьте интернет и firebase-config.js.", [["Повторить", () => location.reload(), true]]); }
+  } else {
+    renderSync();
+    try {
+      const data = await (await fetch("content.json")).json();
+      const {images, ...main} = data; openApp(main, images);
+    } catch (e){ console.error(e); gate("Нет материалов", "Не найден content.json рядом с index.html."); }
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Владелец — может загружать материалы
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email_verified
+        && request.auth.token.email.lower() == 'YOUR_EMAIL@gmail.com';
+    }
+
+    // Список доступа — впишите email (маленькими буквами), включая свой
+    function isAllowed() {
+      return request.auth != null
+        && request.auth.token.email_verified
+        && request.auth.token.email.lower() in [
+          'YOUR_EMAIL@gmail.com',
+          'friend@gmail.com'
+        ];
+    }
+
+    // Материалы: читать — только из списка, писать — только владельцу
+    match /content/{doc} {
+      allow read: if isAllowed();
+      allow write: if isOwner();
+    }
+    match /images/{id} {
+      allow read: if isAllowed();
+      allow write: if isOwner();
+    }
+
+    // Прогресс: каждый видит и пишет только свой документ
+    match /users/{uid} {
+      allow read, write: if isAllowed() && request.auth.uid == uid;
+    }
+  }
+}
