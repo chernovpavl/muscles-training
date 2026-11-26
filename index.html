@@ -85,6 +85,13 @@ details.m summary .nm{flex:1;font-weight:600}
 .hide{display:none!important}
 input[type=number]{width:70px;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:var(--bg)}
 .linkbtn{border:0;background:none;padding:0;color:var(--blue);cursor:pointer;font-size:12px}
+.ex{margin-top:10px;background:var(--bg);border-left:3px solid var(--ok);border-radius:8px;padding:10px 12px;font-size:14.5px}
+.ex b{color:var(--ok)} .ex ul{margin:6px 0 0;padding-left:18px} .ex li{margin:3px 0}
+.sec{margin:0 0 10px} .sec .lab{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent);margin-bottom:2px}
+.aname{font-size:19px;font-weight:700;margin-bottom:10px}
+.btn.know{color:var(--ok);border-color:var(--ok)}
+.actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px}
+.actions .btn{padding:10px 4px;font-size:14px;line-height:1.2;min-width:0}
 .gate{max-width:420px;margin:12vh auto 0;text-align:center}
 .gate h2{font-size:20px}
 .fig{display:block;max-width:100%;max-height:300px;margin:12px auto 0;border-radius:10px;background:#fff;cursor:zoom-in}
@@ -148,6 +155,9 @@ input[type=number]{width:70px;border:1px solid var(--line);border-radius:8px;pad
         <div class="chips" id="blocks"></div>
         <div style="height:10px"></div>
         <div class="chips" id="types"></div>
+        <div style="height:10px"></div>
+        <div class="row small muted" style="gap:6px">Вопрос по мышце:</div>
+        <div class="chips" id="prompt" style="margin-top:6px"></div>
         <div style="height:12px"></div>
         <div class="row small muted">
           Новых карточек в день: <input type="number" id="newlimit" min="0" max="200" step="5">
@@ -168,14 +178,17 @@ input[type=number]{width:70px;border:1px solid var(--line);border-radius:8px;pad
         <div id="q-field-wrap"><span class="qfield" id="q-field"></span></div>
         <img class="fig qfig hide" id="q-img" alt="">
         <textarea id="q-input" placeholder="Ответьте сами (можно не печатать, а проговорить)…"></textarea>
-        <div class="row" style="margin-top:12px" id="show-row">
+        <div class="actions" id="show-row">
           <button class="btn primary" id="show">Показать ответ</button>
+          <button class="btn know" id="know" title="Засчитать как «Легко», не открывая ответ">Точно знаю</button>
+          <button class="btn ghost" id="skip" title="Без ответа и без оценки">Пропустить</button>
         </div>
         <div class="answer hide" id="answer">
           <div class="yours hide" id="yours"></div>
           <div class="text" id="a-text"></div>
           <img class="fig hide" id="a-img" alt="">
           <div class="hint" id="a-hint"></div>
+          <div class="ex hide" id="a-ex"></div>
           <details class="full" id="a-full"><summary>Вся мышца целиком</summary><div id="a-full-body"></div></details>
           <div class="grades">
             <button class="g0" data-g="0">Не помню<small id="iv0"></small></button>
@@ -183,7 +196,7 @@ input[type=number]{width:70px;border:1px solid var(--line);border-radius:8px;pad
             <button class="g2" data-g="2">Помню<small id="iv2"></small></button>
             <button class="g3" data-g="3">Легко<small id="iv3"></small></button>
           </div>
-          <div class="kbd">Клавиши: пробел — показать ответ, 1–4 — оценка (в поле ввода: Ctrl/⌘+Enter)</div>
+          <div class="kbd">Клавиши: пробел — показать ответ, 4 — точно знаю, → или S — пропустить, 1–4 — оценка (в поле ввода: Ctrl/⌘+Enter)</div>
         </div>
       </div>
     </div>
@@ -206,7 +219,7 @@ input[type=number]{width:70px;border:1px solid var(--line);border-radius:8px;pad
   <!-- TABLE -->
   <section class="panel" id="p-table">
     <input class="search" id="search" placeholder="Поиск: мышца, кость, функция…">
-    <div class="small muted" style="margin:-4px 2px 6px">Точки: начало · прикрепление · функции (серый — новая, жёлтый — учится, зелёный — выучена)</div>
+    <div class="small muted" style="margin:-4px 2px 6px">Точка справа: серая — новая, жёлтая — учится, зелёная — выучена</div>
     <div id="mlist"></div>
   </section>
 
@@ -253,23 +266,42 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":
 let C = null;               // {muscles, hints, reverse, groups, rules}
 let IMG = {};               // ключ → data URL
 let CARDS = [], cardById = {};
-const FIELDS = {o:"Начало", i:"Прикрепление", f:"Основные функции"};
-const TYPES = {o:"Начало", i:"Прикрепление", f:"Функции", p:"Узнать по картинке", r:"Обратные вопросы"};
+const TYPES = {m:"Мышцы", r:"Обратные вопросы"};
+const PROMPTS = {name:"по названию", pic:"по картинке", mix:"вперемешку"};
 
+// Одна карточка на мышцу; обратные вопросы блока идут после его мышц
 function buildCards(){
   CARDS = [];
-  for (const m of C.muscles){
-    for (const k of ["o","i","f"]) CARDS.push({id:`${m.n}${k}`, type:k, g:m.g, m});
-    if (IMG[m.n]) CARDS.push({id:`${m.n}p`, type:"p", g:m.g, m});
+  for (const g of Object.keys(C.groups)){
+    for (const m of C.muscles.filter(m => m.g === g)) CARDS.push({id:`m${m.n}`, type:"m", g, m});
+    for (const r of C.reverse.filter(r => r.g === g)) CARDS.push({id:r.id, type:"r", g, r});
   }
-  for (const r of C.reverse) CARDS.push({id:r.id, type:"r", g:r.g, r});
   cardById = Object.fromEntries(CARDS.map(c => [c.id, c]));
+}
+
+// Перенос прогресса со старых карточек «1o / 1i / 1f / 1p» на одну карточку «m1»:
+// берём самую слабую из старых записей, чтобы ничего не «выучилось» само.
+function migrate(st){
+  const old = {};
+  for (const id of Object.keys(st.cards)){
+    const mm = /^(\d+)[oifp]$/.exec(id);
+    if (mm){ (old[mm[1]] ||= []).push(st.cards[id]); delete st.cards[id]; }
+  }
+  for (const [n, recs] of Object.entries(old)){
+    if (st.cards["m"+n]) continue;
+    recs.sort((a, b) => (a.iv - b.iv) || (a.due - b.due));
+    st.cards["m"+n] = {...recs[0], t: Math.max(...recs.map(r => r.t || 0))};
+  }
+  return st;
 }
 
 /* ---------- state ---------- */
 const LS = "muscles.v1", PREF = "muscles.prefs.v1", EMAIL_KEY = "muscles.emailForSignIn";
-let state = load(LS) || {cards:{}, newDay:{date:"", count:0}};
-let prefs = Object.assign({blocks:["trunk"], types:["o","i","f","p","r"], newLimit:20}, load(PREF) || {});
+let state = migrate(load(LS) || {cards:{}, newDay:{date:"", count:0}});
+let prefs = Object.assign({blocks:["trunk"], types:["m","r"], prompt:"name", newLimit:20}, load(PREF) || {});
+if (prefs.types.some(t => "oifp".includes(t))) prefs.types = ["m", ...(prefs.types.includes("r") ? ["r"] : [])];
+if (!PROMPTS[prefs.prompt]) prefs.prompt = "name";
+try { localStorage.setItem(LS, JSON.stringify(state)); } catch {}
 function load(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } }
 function saveLocal(){ try { localStorage.setItem(LS, JSON.stringify(state)); } catch {} }
 function savePrefs(){ try { localStorage.setItem(PREF, JSON.stringify(prefs)); } catch {} }
@@ -298,11 +330,14 @@ function renderChips(){
     `<label class="chip"><input type="checkbox" value="${k}" ${prefs.blocks.includes(k)?"checked":""}>${v}</label>`).join("");
   $("#types").innerHTML = Object.entries(TYPES).map(([k,v]) =>
     `<label class="chip"><input type="checkbox" value="${k}" ${prefs.types.includes(k)?"checked":""}>${v}</label>`).join("");
+  $("#prompt").innerHTML = Object.entries(PROMPTS).map(([k,v]) =>
+    `<label class="chip"><input type="radio" name="prompt" value="${k}" ${prefs.prompt===k?"checked":""}>${v}</label>`).join("");
   $("#newlimit").value = prefs.newLimit;
 }
 function readChips(){
   prefs.blocks = [...document.querySelectorAll("#blocks input:checked")].map(i => i.value);
   prefs.types = [...document.querySelectorAll("#types input:checked")].map(i => i.value);
+  prefs.prompt = document.querySelector("#prompt input:checked")?.value || "name";
   prefs.newLimit = Math.max(0, parseInt($("#newlimit").value) || 0);
   savePrefs(); renderStats();
 }
@@ -333,17 +368,39 @@ let S = null;
 function setImg(el, key){ const src = key != null && IMG[key]; el.classList.toggle("hide", !src); if (src) el.src = src; else el.removeAttribute("src"); }
 function startSession(cram){
   const now = Date.now(), sel = selected();
-  let queue;
-  if (cram) queue = sel.map(c => c.id).sort(() => Math.random() - .5);
+  let list;
+  if (cram) list = shuffle(sel);
   else {
-    const due = sel.filter(c => state.cards[c.id] && state.cards[c.id].due <= now).sort((a,b) => state.cards[a.id].due - state.cards[b.id].due);
+    const due = shuffle(sel.filter(c => state.cards[c.id] && state.cards[c.id].due <= now));
     const fresh = sel.filter(c => !state.cards[c.id]).slice(0, Math.max(0, prefs.newLimit - newCountToday()));
-    queue = [...due, ...fresh].map(c => c.id);
+    list = [...due, ...fresh];
   }
+  // обратные вопросы равномерно между мышцами, а не пачкой
+  const queue = spread(list.filter(c => c.type === "m"), list.filter(c => c.type === "r")).map(c => c.id);
   if (!queue.length){ toast("Нет карточек для выбранных блоков"); return; }
   S = {queue, cram, total: queue.length, done: 0};
   $("#setup").classList.add("hide"); $("#done").classList.add("hide"); $("#session").classList.remove("hide");
   showCard();
+}
+function shuffle(a){ a = [...a]; for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function spread(ms, rs){
+  if (!rs.length || !ms.length) return [...ms, ...rs];
+  const out = []; let placed = 0;
+  ms.forEach((m, i) => {
+    out.push(m);
+    const target = Math.floor((i + 1) * rs.length / ms.length);
+    while (placed < target) out.push(rs[placed++]);
+  });
+  return out;
+}
+// «вперемешку»: случайно, но не больше двух одинаковых подряд
+function pickMode(){
+  if (prefs.prompt !== "mix") return prefs.prompt;
+  const h = S.modes ||= [];
+  let p = Math.random() < .5 ? "pic" : "name";
+  if (h.length >= 2 && h.at(-1) === h.at(-2)) p = h.at(-1) === "pic" ? "name" : "pic";
+  h.push(p);
+  return p;
 }
 function showCard(){
   if (!S.queue.length) return finish();
@@ -353,8 +410,19 @@ function showCard(){
   $("#q-block").textContent = C.groups[c.g] + (S.cram ? " · прогон" : "") + (!state.cards[c.id] && !S.cram ? " · новая" : "");
   setImg($("#q-img"), null);
   if (c.type === "r"){ $("#q-name").textContent = c.r.q; $("#q-field-wrap").classList.add("hide"); }
-  else if (c.type === "p"){ $("#q-name").textContent = "Какая мышца выделена?"; $("#q-field-wrap").classList.add("hide"); setImg($("#q-img"), c.m.n); }
-  else { $("#q-name").textContent = `${c.m.n}. ${c.m.name}`; $("#q-field").textContent = FIELDS[c.type] + "?"; $("#q-field-wrap").classList.remove("hide"); }
+  else {
+    const p = pickMode();
+    S.pic = p === "pic" && !!IMG[c.m.n];
+    $("#q-field-wrap").classList.remove("hide");
+    if (S.pic){
+      $("#q-name").textContent = "Что это за мышца?";
+      $("#q-field").textContent = "Название · начало · прикрепление · функции";
+      setImg($("#q-img"), c.m.n);
+    } else {
+      $("#q-name").textContent = `${c.m.n}. ${c.m.name}`;
+      $("#q-field").textContent = "Начало · прикрепление · функции";
+    }
+  }
   $("#q-input").value = "";
   $("#answer").classList.add("hide"); $("#show-row").classList.remove("hide");
   S.shown = false;
@@ -368,18 +436,32 @@ function reveal(){
   setImg($("#a-img"), null);
   if (c.type === "r"){
     $("#a-text").innerHTML = esc(c.r.a);
-    $("#a-hint").classList.add("hide"); $("#a-full").classList.add("hide");
+    $("#a-hint").classList.add("hide"); $("#a-full").classList.add("hide"); $("#a-ex").classList.add("hide");
   } else {
-    $("#a-text").innerHTML = c.type === "p"
-      ? `<span class="lab">${c.m.n}. ${esc(c.m.name)}</span>`
-      : `<span class="lab">${FIELDS[c.type]}:</span> ${esc(c.m[c.type])}`;
-    if (c.type !== "p") setImg($("#a-img"), c.m.n);
+    $("#a-text").innerHTML = (S.pic ? `<div class="aname">${c.m.n}. ${esc(c.m.name)}</div>` : "") + secHtml(c.m);
+    if (!S.pic) setImg($("#a-img"), c.m.n);
     $("#a-hint").innerHTML = `<b>Как запомнить:</b> ${esc(C.hints[c.m.n] || "")}`; $("#a-hint").classList.remove("hide");
-    $("#a-full").classList.remove("hide"); $("#a-full").open = false;
-    $("#a-full-body").innerHTML = muscleBody(c.m, false);
+    $("#a-ex").innerHTML = exHtml(c.m); $("#a-ex").classList.toggle("hide", !c.m.ex?.length);
+    $("#a-full").classList.add("hide");
   }
   for (let g = 0; g < 4; g++) $("#iv"+g).textContent = S.cram ? "" : ivLabel(schedule(state.cards[c.id], g));
   $("#show-row").classList.add("hide"); $("#answer").classList.remove("hide");
+}
+// Пропуск: расписание не меняется. Первый раз — карточка уходит в конец очереди,
+// второй раз — убирается из этой тренировки (останется к следующей).
+function skip(){
+  if (!S || S.shown) return;
+  const id = S.queue.shift();
+  S.skipped ||= {};
+  if (S.skipped[id]){ S.total--; toast("Отложено до следующей тренировки"); }
+  else { S.skipped[id] = 1; S.queue.push(id); toast("Вернётся в конце"); }
+  showCard();
+}
+// «Точно знаю»: без показа ответа, как оценка «Легко»
+function know(){
+  if (!S || S.shown) return;
+  S.shown = true;
+  grade(3);
 }
 function grade(g){
   if (!S || !S.shown) return;
@@ -396,7 +478,8 @@ function grade(g){
 }
 function finish(){
   $("#session").classList.add("hide"); $("#done").classList.remove("hide");
-  $("#done-text").textContent = S.cram ? `Прогнали ${S.total} карточек.` : `Пройдено ${S.total} карточек. Следующие повторения придут по расписанию.`;
+  $("#done-text").textContent = !S.total ? "Все карточки отложены — они останутся к следующей тренировке."
+    : S.cram ? `Прогнали ${S.total} карточек.` : `Пройдено ${S.total} карточек. Следующие повторения придут по расписанию.`;
   S = null; renderStats(); renderTable();
 }
 function stopSession(){ if (S){ S = null; $("#session").classList.add("hide"); $("#setup").classList.remove("hide"); renderStats(); renderTable(); } }
@@ -406,21 +489,24 @@ function muscleBody(m, withImg = true){
   return (withImg && IMG[m.n] ? `<img class="fig" src="${IMG[m.n]}" alt="" loading="lazy">` : "") +
     `<p><span class="lab">Начало:</span> ${esc(m.o)}</p><p><span class="lab">Прикрепление:</span> ${esc(m.i)}</p><p><span class="lab">Функции:</span> ${esc(m.f)}</p>`;
 }
+const secHtml = m => [["Начало", m.o], ["Прикрепление", m.i], ["Функции", m.f]]
+  .map(([l, t]) => `<div class="sec"><div class="lab">${l}</div><div>${esc(t)}</div></div>`).join("");
+const exHtml = m => m.ex?.length ? `<b>В упражнениях</b><ul>${m.ex.map(x => `<li>${esc(x)}</li>`).join("")}</ul>` : "";
 function renderTable(){
   if (!C) return;
   const q = ($("#search").value || "").toLowerCase().trim();
   let html = "";
   for (const [g, name] of Object.entries(C.groups)){
-    const ms = C.muscles.filter(m => m.g === g && (!q || [m.name,m.o,m.i,m.f,C.hints[m.n]].join(" ").toLowerCase().includes(q)));
+    const ms = C.muscles.filter(m => m.g === g && (!q || [m.name,m.o,m.i,m.f,C.hints[m.n],...(m.ex||[])].join(" ").toLowerCase().includes(q)));
     if (!ms.length) continue;
     html += `<div class="grp">${name}</div>`;
     for (const m of ms){
-      const pips = ["o","i","f"].map(k => { const s = status(m.n+k); return `<span class="pip ${s==="known"?"k":s==="learn"?"l":""}"></span>`; }).join("");
+      const s = status("m" + m.n), pips = `<span class="pip ${s==="known"?"k":s==="learn"?"l":""}"></span>`;
       html += `<details class="m" data-n="${m.n}"${q ? " open" : ""}><summary><span class="num">${m.n}</span><span class="nm">${esc(m.name)}</span><span class="pips">${pips}</span></summary><div class="mbody"></div></details>`;
     }
   }
   $("#mlist").innerHTML = html || `<p class="muted center">Ничего не найдено</p>`;
-  const fill = d => { const b = d.querySelector(".mbody"); if (!b.innerHTML){ const m = C.muscles.find(x => x.n == d.dataset.n); b.innerHTML = muscleBody(m) + `<div class="hint"><b>Как запомнить:</b> ${esc(C.hints[m.n] || "")}</div>`; } };
+  const fill = d => { const b = d.querySelector(".mbody"); if (!b.innerHTML){ const m = C.muscles.find(x => x.n == d.dataset.n); b.innerHTML = muscleBody(m) + `<div class="hint"><b>Как запомнить:</b> ${esc(C.hints[m.n] || "")}</div>` + (m.ex?.length ? `<div class="ex">${exHtml(m)}</div>` : ""); } };
   document.querySelectorAll("details.m").forEach(d => { if (d.open) fill(d); d.addEventListener("toggle", () => d.open && fill(d)); });
 }
 function renderRules(){
@@ -524,7 +610,7 @@ const Sync = {
     this.unsub = fs.onSnapshot(this.ref(), snap => {
       const remote = snap.exists() ? snap.data() : {cards:{}, newDay:{date:"",count:0}};
       const m1 = merge(state, remote), m2 = merge(remote, state);
-      state = m1.state; saveLocal();
+      state = migrate(m1.state); saveLocal();
       if (m1.changed){ renderStats(); renderTable(); }
       if (m2.changed || !snap.exists()) this.push(true);
       this.set("on");
@@ -627,7 +713,7 @@ $("#export").onclick = () => {
 };
 $("#import").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
-  try { const data = JSON.parse(await f.text()); state = merge(state, data).state; persist(); renderStats(); renderTable(); toast("Прогресс загружен"); }
+  try { const data = JSON.parse(await f.text()); state = migrate(merge(state, migrate(data)).state); persist(); renderStats(); renderTable(); toast("Прогресс загружен"); }
   catch { toast("Не удалось прочитать файл"); }
   e.target.value = "";
 };
@@ -646,11 +732,13 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "p-" + b.dataset.tab));
   window.scrollTo(0, 0);
 });
-$("#blocks").onchange = $("#types").onchange = readChips;
+$("#blocks").onchange = $("#types").onchange = $("#prompt").onchange = readChips;
 $("#newlimit").onchange = readChips;
 $("#start").onclick = () => startSession(false);
 $("#cram").onclick = () => startSession(true);
 $("#show").onclick = reveal;
+$("#skip").onclick = skip;
+$("#know").onclick = know;
 $("#stop").onclick = stopSession;
 $("#back").onclick = () => { $("#done").classList.add("hide"); $("#setup").classList.remove("hide"); };
 document.querySelectorAll(".grades button").forEach(b => b.onclick = () => grade(+b.dataset.g));
@@ -661,6 +749,8 @@ document.addEventListener("keydown", e => {
   if (e.target.tagName === "TEXTAREA"){ if (e.key === "Enter" && (e.metaKey || e.ctrlKey)){ e.preventDefault(); reveal(); } return; }
   if (e.code === "Space" || e.key === "Enter"){ e.preventDefault(); S.shown ? grade(2) : reveal(); }
   else if (S.shown && "1234".includes(e.key)) grade(+e.key - 1);
+  else if (!S.shown && (e.key === "s" || e.key === "ы" || e.key === "ArrowRight")) skip();
+  else if (!S.shown && e.key === "4") know();
 });
 document.addEventListener("visibilitychange", () => { if (!document.hidden) renderStats(); });
 
